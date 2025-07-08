@@ -1,0 +1,13 @@
+{
+  "name": "bot-litera",
+  "version": "1.0.0",
+  "description": "Telegram bot for Litera AI",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "openai": "^4.52.7"
+  }
+}
