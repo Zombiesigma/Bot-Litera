@@ -5,10 +5,8 @@ const { Telegraf } = require('telegraf');
 const OpenAI = require('openai');
 
 // --- KONFIGURASI ---
-// Di Vercel, kita akan menggunakan Environment Variables dari dashboard
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
 const MAX_HISTORY = 10;
 
 // --- INISIALISASI ---
@@ -33,26 +31,22 @@ const systemPrompt = `
     - jika bertanya lebih dalam tentang Guntur Padilah, jawab bahwa Guntur Padilah adalah seorang anak muda yang sedang berjuang untuk menjadi seorang Seniman, dan juga programmer. Ia juga adalah seorang penulis muda, dia mempunyai sebuah karya buku self-improvement berjudul "Beri Ruang Untuk Kelelahan", jika kamu ingin tahu lebih banyak tentang Guntur Padilah, Silahkan kunjungi portofolio beliau: https://www.gunturturner.biz.id (tampilkan link nya agar bisa diklik).
 `;
 
-// Penyimpanan Memori (Catatan: Memori ini akan di-reset setiap kali fungsi serverless dipanggil jika tidak menggunakan database eksternal)
+// Penyimpanan Memori
 const chatHistories = new Map();
 
 // --- FUNGSI UTAMA BOT ---
 const clearUserHistory = (chatId) => { chatHistories.delete(chatId); };
-
 bot.start((ctx) => {
   clearUserHistory(ctx.chat.id);
   ctx.reply('Salam semesta. Aku Litera. Percakapan baru telah dimulai.');
 });
-
 bot.command('clear', (ctx) => {
   clearUserHistory(ctx.chat.id);
   ctx.reply('Memori percakapan telah dibersihkan.');
 });
-
 bot.on('text', async (ctx) => {
   const chatId = ctx.chat.id;
   const userMessage = ctx.message.text;
-
   try {
     await ctx.telegram.sendChatAction(chatId, 'typing');
     const history = chatHistories.get(chatId) || [];
@@ -61,14 +55,11 @@ bot.on('text', async (ctx) => {
       ...history,
       { role: 'user', content: userMessage },
     ];
-
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: messages,
     });
-
     const aiResponse = completion.choices[0].message.content;
-
     if (aiResponse && aiResponse.trim()) {
         await ctx.reply(aiResponse);
         const updatedHistory = [
@@ -87,11 +78,18 @@ bot.on('text', async (ctx) => {
 });
 
 // --- EXPORT HANDLER UNTUK VERCEL ---
-// Kode ini mengubah bot Telegraf menjadi fungsi yang bisa dipanggil Vercel
+// PERBAIKAN: Kita tambahkan pengecekan metode request
 module.exports = async (req, res) => {
-  try {
-    await bot.handleUpdate(req.body, res);
-  } catch (err) {
-    console.error(err);
+  // Hanya proses jika requestnya adalah POST (dari Telegram)
+  if (req.method === 'POST') {
+    try {
+      await bot.handleUpdate(req.body, res);
+    } catch (err) {
+      console.error("Error saat handleUpdate:", err);
+      res.status(500).send('Internal Server Error');
+    }
+  } else {
+    // Jika bukan POST (misalnya dari browser), kirim pesan sambutan
+    res.status(200).send('Halo! Ini adalah URL untuk Webhook Litera AI Bot. Bot sudah aktif dan berjalan.');
   }
 };
